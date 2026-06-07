@@ -1,0 +1,79 @@
+# =========================================================
+
+# Script: Manhattan y QQ plot para resultados GWAS (PLINK)
+
+# =========================================================
+
+# 1. Limpiar entorno
+
+rm(list = ls())
+
+# 2. Directorio de trabajo (AJUSTAR)
+
+setwd("C:/Users/mpila/Desktop/Master UNIR/TFE/Plink")
+
+# 3. Instalar y cargar paquete necesario
+
+if (!require(qqman)) install.packages("qqman")
+library(qqman)
+
+# 4. Leer resultados GWAS (PLINK logistic)
+
+gwas <- read.table("resultados_corregidos.assoc.logistic", header = TRUE)
+
+# 5. Revisar estructura
+
+head(gwas)
+
+# 6. Filtrar filas válidas (evitar NA en p-values)
+
+gwas <- gwas[!is.na(gwas$P), ]
+
+
+# 7. Manhattan plot
+png("manhattan.png", width = 1200, height = 600)
+manhattan(gwas, 
+          chr = "CHR", 
+          bp = "BP", 
+          snp = "SNP", 
+          p = "P", 
+          main = "GWAS Esteatosis",
+          # Línea roja: significancia genómica (5e-8)
+          genomewideline = -log10(5e-8), 
+          # Línea azul: nivel sugerente (1e-5)
+          suggestiveline = -log10(1e-5),
+          col = c("blue4", "orange3")) # Colores opcionales para alternar cromosomas
+dev.off()
+
+# 8. QQ plot
+png("qqplot.png", width = 600, height = 600)
+qq(gwas$P, main = "QQ plot GWAS")
+dev.off()
+
+# 9. Calcular lambda (inflación genómica)
+# El estadístico de prueba (STAT) en tu archivo se usa para validar la inflación [cite: 1, 2]
+chisq <- qchisq(1 - gwas$P, 1)
+lambda <- median(chisq) / qchisq(0.5, 1)
+cat("Lambda (inflación genómica):", lambda, "\n")
+
+# Ver los 10 mejores resultados ordenados por P-value
+head(gwas[order(gwas$P), ], 10)
+
+#Formato tabix para Locus zoom#
+
+# 1. Ordenar el dataframe por la columna P (de menor a mayor)
+gwas_ordenado <- gwas[order(gwas$P), ]
+
+# 2. Filtrar SNPs sugerentes (P < 1e-5)
+# Estos son los que suelen aparecer por encima de la línea azul
+snps_interesantes <- subset(gwas_ordenado, P < 0.00001)
+
+# 3. Ver los 10 mejores resultados en consola
+print("Top 10 SNPs más significativos:")
+head(gwas_ordenado, 10)
+
+# 4. Guardar los resultados significativos en un archivo CSV para tu informe
+write.csv(snps_interesantes, "mejores_snps_esteatosis.csv", row.names = FALSE)
+
+# Leer los resultados finales (los que tienen lambda 0.9)
+gwas_final <- read.table("resultados_corregidos.assoc.logistic", header = TRUE)

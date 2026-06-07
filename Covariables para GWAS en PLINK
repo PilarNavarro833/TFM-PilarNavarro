@@ -1,0 +1,69 @@
+=========================================================
+
+# Script: Preparación de covariables para GWAS en PLINK
+
+# =========================================================
+
+# 1. Limpiar entorno
+
+rm(list = ls())
+
+# 2. Definir directorio de trabajo
+
+setwd("C:/Users/mpila/Desktop/Master UNIR/TFE/Plink")
+
+# 3. Leer archivo de fenotipo
+
+pheno <- read.table("pheno.txt", header = TRUE, stringsAsFactors = FALSE)
+
+# 4. Leer archivo PCA (sin cabecera)
+
+pca <- read.table("HV_PCA.eigenvec", header = FALSE, stringsAsFactors = FALSE)
+
+# 5. Asignar nombres a columnas PCA
+
+colnames(pca) <- c("FID", "IID", paste0("PC", 1:(ncol(pca) - 2)))
+
+# 6. Ver dimensiones iniciales
+
+cat("Número de individuos en pheno:", nrow(pheno), "\n")
+cat("Número de individuos en PCA:", nrow(pca), "\n")
+
+# 7. Comprobar IDs no coincidentes
+
+ids_no_en_pca <- setdiff(pheno$IID, pca$IID)
+ids_no_en_pheno <- setdiff(pca$IID, pheno$IID)
+
+cat("IDs en pheno pero NO en PCA:", length(ids_no_en_pca), "\n")
+cat("IDs en PCA pero NO en pheno:", length(ids_no_en_pheno), "\n")
+
+# (Opcional) ver ejemplos
+
+head(ids_no_en_pca)
+head(ids_no_en_pheno)
+
+# 8. Hacer merge por FID e IID
+
+data_merged <- merge(pheno, pca, by = c("FID", "IID"))
+
+# 9. Ver resultado del merge
+
+cat("Número de individuos tras merge:", nrow(data_merged), "\n")
+
+# 10. Ordenar (opcional pero recomendable)
+
+data_merged <- data_merged[order(data_merged$IID), ]
+
+# 11. Guardar archivo final para PLINK
+
+write.table(data_merged,
+            file = "covar.txt",
+            row.names = FALSE,
+            quote = FALSE,
+            sep = "\t")
+
+cat("Archivo 'covar.txt' generado correctamente.\n")
+
+# 12. Vista previa
+
+head(data_merged)

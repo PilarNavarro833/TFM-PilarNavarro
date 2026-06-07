@@ -1,0 +1,53 @@
+Para realizar un GWAS (Genome-Wide Association Study) utilizando archivos binarios de PLINK (.bed, .bim, .fam) y un archivo de fenotipos, utilizaremos la herramienta PLINK 1.9
+
+Los datos de fenotipos están en un archivo externo (Pheno.csv).
+
+1. Preparación de los archivos
+Para que PLINK reconozca correctamente, comprobamos que el archivo tiene un formato específico y nos aseguramos que los valores de los fenotipos binarios sean 1 (control) y 2 (caso) como es el caso
+
+
+FID: Family ID (Columna Muestra o FID).  
+
+IID: Individual ID (Columna Muestra o IID).  
+
+Fenotipo: La variable dependiente (Esteatosis).  
+
+Covariables: Variables que pueden confundir los resultados (Sexo, Edad_Cat, Sobrepeso).  
+
+
+2. Control de Calidad (QC)
+Antes de correr el GWAS, filtramos variantes e individuos de baja calidad para evitar falsos positivos.
+
+Bash
+# Filtrado de variantes e individuos
+plink --bfile HV_GWAS_925_sinImputar_rs.VHC.unimputed --maf 0.05 --geno 0.05 --mind 0.05 --hwe 1e-6 --make-bed --out datos_limpios
+
+--maf 0.05: Excluye variantes con frecuencia alélica menor al 5%.
+
+--geno 0.05: Excluye variantes con más del 5% de datos faltantes.
+
+--mind 0.05: Excluye individuos con más del 5% de genotipos faltantes.
+
+--hwe 1e-6: Excluye variantes que fallan el equilibrio de Hardy-Weinberg.
+
+3. Ejecución del GWAS
+Como el fenotipo (Esteatosis) categórico (caso/control), usaremos una regresión logística.
+
+Opción A: Regresión Logística (Caso/Control)
+Si Esteatosis es 1 (sano) y 2 (enfermo).  
+
+Bash
+plink --bfile datos_limpios --pheno Pheno.txt --pheno-name Esteatosis --logistic --covar Pheno.txt --covar-name Sexo,Edad_Cat,Sobrepeso --hide-covar --allow-no-sex --out resultados_gwas
+
+Opción B: Ajuste por Estratificación Poblacional (PCs)
+Es común calcular Componentes Principales (PCs) para ajustar por ancestría y evitar sesgos.
+
+Bash
+# 1. Calcular PCs
+plink --bfile datos_limpios --pca 10 --out componentes_principales
+
+# 2. Correr GWAS incluyendo los PCs como covariables
+plink --bfile datos_limpios --pheno Pheno.txt --pheno-name Esteatosis --logistic --covar componentes_principales.eigenvec --out gwas_con_pcs
+
+4. Visualización de Resultados
+Una vez generado el archivo .assoc.logistic se procede en R para crear un Manhattan Plot.

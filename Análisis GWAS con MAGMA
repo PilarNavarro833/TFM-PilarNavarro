@@ -49,7 +49,7 @@ echo [3/3] Ejecutando analisis de genes...
 magma.exe ^
   --bfile g1000_eur ^
   --pval gwas_pvalues.txt use=SNP,P ^
-  N=828 ^
+  N=474 ^
   --gene-annot mi_gwas_anotado.genes.annot ^
   --out resultados_genes
 

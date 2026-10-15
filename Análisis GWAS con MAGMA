@@ -1,0 +1,63 @@
+@echo off
+setlocal
+cd /d "%~dp0"
+
+echo ============================================
+echo ANALISIS GWAS CON MAGMA
+echo ============================================
+
+:: -------------------------------------------------
+:: PASO 1: EXTRAER SNP Y VALORES P DE PLINK
+:: -------------------------------------------------
+echo [1/3] Preparando archivo de valores p...
+
+powershell -NoProfile -Command ^
+ "$ErrorActionPreference='Stop';" ^
+ "'SNP P' | Set-Content -Encoding ascii 'gwas_pvalues.txt';" ^
+ "Get-Content 'resultados_corregidos.assoc.logistic' | ForEach-Object {" ^
+ "  $c = $_.Trim() -split '\s+';" ^
+ "  if ($c.Count -ge 10 -and $c[4] -eq 'ADD' -and $c[1] -and $c[9] -match '^[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$') {" ^
+ "    Add-Content -Encoding ascii 'gwas_pvalues.txt' ($c[1] + ' ' + $c[9]);" ^
+ "  }" ^
+ "}"
+
+if errorlevel 1 (
+    echo ERROR: No se pudo preparar el archivo de valores p.
+    exit /b 1
+)
+
+:: -------------------------------------------------
+:: PASO 2: ANOTACION SNP-GEN
+:: -------------------------------------------------
+echo [2/3] Anotando SNP a genes...
+
+magma.exe --annotate ^
+  --snp-loc HV_QC.bim ^
+  --gene-loc NCBI38.gene.loc ^
+  --out mi_gwas_anotado
+
+if errorlevel 1 (
+    echo ERROR: Fallo la anotacion de genes.
+    exit /b 1
+)
+
+:: -------------------------------------------------
+:: PASO 3: ANALISIS A NIVEL DE GENES
+:: -------------------------------------------------
+echo [3/3] Ejecutando analisis de genes...
+
+magma.exe ^
+  --bfile g1000_eur ^
+  --pval gwas_pvalues.txt use=SNP,P ^
+  N=828 ^
+  --gene-annot mi_gwas_anotado.genes.annot ^
+  --out resultados_genes
+
+if errorlevel 1 (
+    echo ERROR: Fallo el analisis de genes.
+    exit /b 1
+)
+
+echo.
+echo Proceso finalizado. Revisa resultados_genes.genes.out
+endlocal
